@@ -242,7 +242,10 @@ class IssueList(BaseModel):
         Returns:
             True if there are more issues beyond this page.
         """
-        return self.offset + len(self.issues) < self.total_count
+        # Consider the paging window (offset + limit) when deciding
+        # whether there are more pages. This matches Redmine pagination
+        # semantics and test expectations.
+        return (self.offset + self.limit) < self.total_count
     
     @property
     def next_offset(self) -> int:
