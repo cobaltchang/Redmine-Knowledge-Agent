@@ -80,6 +80,29 @@ tests/
 - 文件：繁體中文優先
 - 變數/函數命名：英文
 
+## 安全開發流程
+
+### 威脅建模 (Threat Modeling)
+- 新功能涉及外部輸入或網路通訊時，需更新 `docs/THREAT_MODEL.md`
+- 使用 STRIDE 方法識別威脅
+- 記錄緩解措施與實作狀態
+
+### 安全工具
+- **Bandit**: 靜態安全分析 (`bandit -c pyproject.toml -r src/`)
+- **pip-audit**: 依賴漏洞掃描 (`pip-audit`)
+- **detect-secrets**: 敏感資料檢測 (`detect-secrets scan`)
+- **SBOM**: 使用 CycloneDX 產生 (`cyclonedx-py environment`)
+
+### Pre-commit Hooks
+- 安裝：`pre-commit install`
+- 手動執行：`pre-commit run --all-files`
+- 包含：敏感資料檢測、程式碼格式化、安全掃描
+
+### CI 安全檢查
+- 每次 PR 執行安全掃描
+- 每週自動執行依賴漏洞審計
+- SBOM 隨每次 CI 更新
+
 ## 禁止事項
 
 - ❌ 不要累積大量變更後才 commit
@@ -87,3 +110,5 @@ tests/
 - ❌ 不要硬編碼敏感資訊
 - ❌ 不要忽略 type hints
 - ❌ 不要使用 `# type: ignore` 除非有充分理由
+- ❌ 不要忽略安全掃描警告
+- ❌ 不要在日誌中記錄敏感資訊

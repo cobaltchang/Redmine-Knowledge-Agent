@@ -45,6 +45,15 @@ dev = [
     "mypy>=1.8.0",
     "openpyxl>=3.1.0",
     "requests>=2.31.0",
+    # Security tools
+    "bandit[toml]>=1.7.0",
+    "pip-audit>=2.7.0",
+    "safety>=3.0.0",
+    # Pre-commit
+    "pre-commit>=3.6.0",
+    "detect-secrets>=1.4.0",
+    # SBOM generation
+    "cyclonedx-bom>=4.0.0",
 ]
 
 [project.scripts]
@@ -105,9 +114,20 @@ select = [
 ]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]  # Allow assert and hardcoded passwords in tests
+
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 strict = true
+
+# Bandit security scanner configuration
+[tool.bandit]
+exclude_dirs = ["tests", "docs"]
+skips = ["B101"]  # Skip assert_used in non-test code (we use it intentionally)
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "test_*.py"]
