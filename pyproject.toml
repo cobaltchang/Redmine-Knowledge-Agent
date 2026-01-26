@@ -1,0 +1,113 @@
+[project]
+name = "redmine-knowledge-agent"
+version = "0.1.0"
+description = "自動化知識提取工具，連接 Redmine 並整理成結構化技術 Wiki"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+keywords = ["redmine", "knowledge", "wiki", "automation", "ocr", "pdf"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "python-redmine>=2.4.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0.0",
+    "structlog>=24.0.0",
+    "typer>=0.12.0",
+    "pytesseract>=0.3.10",
+    "PyMuPDF>=1.24.0",
+    "Pillow>=10.0.0",
+    "python-docx>=1.1.0",
+    "textile>=4.0.0",
+    "markdownify>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "respx>=0.21.0",
+    "ruff>=0.2.0",
+    "mypy>=1.8.0",
+    "openpyxl>=3.1.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+redmine-ka = "redmine_knowledge_agent.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/redmine_knowledge_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "--cov=src/redmine_knowledge_agent",
+    "--cov-report=term-missing",
+    "--cov-report=html:coverage_html",
+    "--cov-fail-under=100",
+]
+
+[tool.coverage.run]
+source = ["src/redmine_knowledge_agent"]
+branch = true
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no branch",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+exclude_also = [
+    "if __name__ == .__main__.:",
+]
+fail_under = 100
+show_missing = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+strict = true

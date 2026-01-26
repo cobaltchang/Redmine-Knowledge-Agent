@@ -1,0 +1,44 @@
+# Redmine Knowledge Agent 設定範例
+# 複製此檔案為 config.yaml 並修改設定
+
+redmine:
+  url: "https://redmine.example.com"
+  api_key: "${REDMINE_API_KEY}"  # 從環境變數讀取，或直接填入 API key
+
+# 輸出目錄設定 - 可設定多個目錄，每個目錄對應一組專案
+outputs:
+  # 第一組：Team A 的專案
+  - path: "./output/team_a"
+    projects:
+      - project_alpha
+      - project_beta
+    include_subprojects: false  # 不包含子專案
+
+  # 第二組：Team B 的專案（包含子專案）
+  - path: "./output/team_b"
+    projects:
+      - project_gamma
+    include_subprojects: true  # 包含子專案
+
+# 內容處理設定
+processing:
+  textile_to_markdown: true  # 將 Textile 轉換為 Markdown
+  ocr_enabled: true          # 啟用圖片 OCR
+  ocr_engine: "pytesseract"  # OCR 引擎: pytesseract, easyocr, multimodal_llm
+  
+  # 多模態 LLM 設定（可選）
+  multimodal_llm:
+    enabled: false
+    provider: "openai"
+    model: "gpt-4o"
+    # api_key: "${OPENAI_API_KEY}"
+
+# 日誌設定
+logging:
+  level: "INFO"      # DEBUG, INFO, WARNING, ERROR
+  format: "console"  # json 或 console
+
+# 狀態儲存設定（用於增量更新）
+state:
+  backend: "sqlite"  # sqlite 或 json
+  path: "./.state.db"
