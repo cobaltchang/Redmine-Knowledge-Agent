@@ -3,9 +3,11 @@
 ## 文件資訊
 
 **專案**: Redmine Knowledge Agent  
-**版本**: 1.0.0  
+**版本**: 2.0.0  
 **最後更新**: 2026-01-26  
 **分類**: 機密 (Internal)
+
+> 📋 詳細威脅建模請參閱 [THREAT_MODEL.md](THREAT_MODEL.md)
 
 ---
 
