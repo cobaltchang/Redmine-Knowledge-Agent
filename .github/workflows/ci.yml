@@ -5,6 +5,9 @@ on:
     branches: [main, b-devel]
   pull_request:
     branches: [main]
+  schedule:
+    # 每週一 UTC 00:00 執行完整安全審計
+    - cron: "0 0 * * 1"
 
 env:
   PYTHON_VERSION: "3.11"
@@ -92,10 +95,11 @@ jobs:
           name: bandit-report
           path: bandit-report.json
 
-      - name: pip-audit vulnerability scan
-        run: |
-          pip install -e .
-          pip-audit --format json --output pip-audit-report.json || true
+      - name: Install project for audit
+        run: pip install -e .
+
+      - name: pip-audit vulnerability scan (report)
+        run: pip-audit --format json --output pip-audit-report.json || true
 
       - name: Upload pip-audit report
         uses: actions/upload-artifact@v4
@@ -134,8 +138,8 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         run: |
           cyclonedx-py environment \
-            --output-format json \
-            --output sbom.json
+            --of JSON \
+            -o sbom.json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
@@ -170,3 +174,26 @@ jobs:
           if detect-secrets scan --baseline .secrets.baseline 2>&1 | grep -q "Potential secrets"; then
             echo "::warning::Potential secrets detected!"
           fi
+  # CVE 嚴格檢查（PR 必須通過）
+  cve-check:
+    name: CVE Check (Strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip install -e .
+
+      - name: Check for known CVEs (fail on vulnerabilities)
+        run: |
+          echo "🔍 Checking for known CVEs in dependencies..."
+          pip-audit --strict --desc on
+          echo "✅ No known CVEs found!"
