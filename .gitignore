@@ -80,6 +80,9 @@ attachments/
 logs/
 *.log
 
+# Generated artifacts
+sbom.json
+
 # Secrets - 絕對不能提交
 secrets/
 *.pem
