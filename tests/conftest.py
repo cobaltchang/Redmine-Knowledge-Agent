@@ -1,9 +1,9 @@
 """Pytest configuration and fixtures."""
+
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -80,7 +80,7 @@ def sample_journal() -> JournalEntry:
         id=1,
         user="Test User",
         notes="This is a test comment with *bold* text.",
-        created_on=datetime(2024, 1, 15, 10, 30),
+        created_on=datetime(2024, 1, 15, 10, 30, tzinfo=UTC),
         details=[],
     )
 
@@ -99,8 +99,8 @@ def sample_issue(
         priority="High",
         subject="Test Issue Subject",
         description_textile="h2. Description\n\nThis is a *test* issue with _formatting_.",
-        created_on=datetime(2024, 1, 10, 9, 0),
-        updated_on=datetime(2024, 1, 20, 14, 30),
+        created_on=datetime(2024, 1, 10, 9, 0, tzinfo=UTC),
+        updated_on=datetime(2024, 1, 20, 14, 30, tzinfo=UTC),
         target_version="v2.0.0",
         assigned_to="Test User",
         author="Author Name",
@@ -117,8 +117,8 @@ def sample_wiki_page(sample_attachment: AttachmentInfo) -> WikiPageMetadata:
         title="TestWikiPage",
         project="test_project",
         version=3,
-        created_on=datetime(2024, 1, 1, 8, 0),
-        updated_on=datetime(2024, 1, 25, 16, 45),
+        created_on=datetime(2024, 1, 1, 8, 0, tzinfo=UTC),
+        updated_on=datetime(2024, 1, 25, 16, 45, tzinfo=UTC),
         text_textile="h1. Wiki Page Title\n\nThis is the wiki content.",
         author="Wiki Author",
         attachments=[sample_attachment],
@@ -150,16 +150,16 @@ def mock_redmine_issue() -> MagicMock:
     issue.id = 12345
     issue.subject = "Mock Issue Subject"
     issue.description = "h2. Mock Description\n\nTest content."
-    issue.created_on = datetime(2024, 1, 10, 9, 0)
-    issue.updated_on = datetime(2024, 1, 20, 14, 30)
+    issue.created_on = datetime(2024, 1, 10, 9, 0, tzinfo=UTC)
+    issue.updated_on = datetime(2024, 1, 20, 14, 30, tzinfo=UTC)
     issue.done_ratio = 25
     issue.estimated_hours = 8.0
     issue.spent_hours = 4.0
-    
+
     # Project
     issue.project = MagicMock()
     issue.project.identifier = "mock_project"
-    
+
     # Tracker, Status, Priority
     issue.tracker = MagicMock()
     issue.tracker.name = "Feature"
@@ -167,7 +167,7 @@ def mock_redmine_issue() -> MagicMock:
     issue.status.name = "New"
     issue.priority = MagicMock()
     issue.priority.name = "Normal"
-    
+
     # Optional fields
     issue.fixed_version = MagicMock()
     issue.fixed_version.name = "v1.0.0"
@@ -175,7 +175,7 @@ def mock_redmine_issue() -> MagicMock:
     issue.assigned_to.name = "Assigned User"
     issue.author = MagicMock()
     issue.author.name = "Author User"
-    
+
     # Attachments
     att = MagicMock()
     att.id = 1
@@ -185,27 +185,27 @@ def mock_redmine_issue() -> MagicMock:
     att.content_url = "https://redmine.example.com/attachments/download/1/mock_file.pdf"
     att.description = "Mock attachment"
     issue.attachments = [att]
-    
+
     # Journals
     journal = MagicMock()
     journal.id = 1
     journal.user = MagicMock()
     journal.user.name = "Commenter"
     journal.notes = "This is a journal note."
-    journal.created_on = datetime(2024, 1, 15, 12, 0)
+    journal.created_on = datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
     journal.details = []
     issue.journals = [journal]
-    
+
     # Custom fields
     cf = MagicMock()
     cf.name = "Custom Field"
     cf.value = "Custom Value"
     issue.custom_fields = [cf]
-    
+
     # Parent
     issue.parent = MagicMock()
     issue.parent.id = 12344
-    
+
     return issue
 
 
@@ -216,16 +216,16 @@ def mock_redmine_wiki_page() -> MagicMock:
     page.title = "MockWikiPage"
     page.text = "h1. Mock Wiki\n\nThis is mock wiki content."
     page.version = 2
-    page.created_on = datetime(2024, 1, 5, 10, 0)
-    page.updated_on = datetime(2024, 1, 22, 11, 30)
-    
+    page.created_on = datetime(2024, 1, 5, 10, 0, tzinfo=UTC)
+    page.updated_on = datetime(2024, 1, 22, 11, 30, tzinfo=UTC)
+
     page.author = MagicMock()
     page.author.name = "Wiki Author"
     page.comments = "Updated content"
-    
+
     page.parent = MagicMock()
     page.parent.title = "ParentPage"
-    
+
     # Attachments
     att = MagicMock()
     att.id = 2
@@ -235,5 +235,5 @@ def mock_redmine_wiki_page() -> MagicMock:
     att.content_url = "https://redmine.example.com/attachments/download/2/wiki_image.png"
     att.description = ""
     page.attachments = [att]
-    
+
     return page
