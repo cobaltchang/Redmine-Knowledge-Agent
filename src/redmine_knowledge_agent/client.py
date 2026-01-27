@@ -12,7 +12,7 @@ from typing import Any
 
 import requests
 import structlog
-from redminelib import Redmine
+from redminelib import Redmine  # type: ignore[import-untyped]
 
 from .config import RedmineConfig
 from .models import IssueMetadata, WikiPageMetadata
