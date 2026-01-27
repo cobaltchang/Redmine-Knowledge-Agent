@@ -203,7 +203,9 @@ def fetch(  # noqa: PLR0912 - complexity justified by CLI command workflow
                 typer.echo(f"  完成: {issue_count} 個 issues")
 
             except (OSError, RuntimeError) as e:
-                logger.exception("Failed to process project issues", project=project_id, error=str(e))
+                logger.exception(
+                    "Failed to process project issues", project=project_id, error=str(e)
+                )
                 typer.echo(f"  ❌ 處理 issues 失敗: {e}", err=True)
 
             # Fetch wiki pages

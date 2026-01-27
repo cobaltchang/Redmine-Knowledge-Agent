@@ -683,8 +683,8 @@ class TestMainEntryPoint:
             project="proj",
             text_textile="Content",
             version=1,
-                    created_on=datetime.now(tz=UTC),
-                    updated_on=datetime.now(tz=UTC),
+            created_on=datetime.now(tz=UTC),
+            updated_on=datetime.now(tz=UTC),
             attachments=[
                 AttachmentInfo(
                     id=200,

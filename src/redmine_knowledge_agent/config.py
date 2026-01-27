@@ -46,7 +46,8 @@ class OutputConfig(BaseModel):
     path: str = Field(..., description="Output directory path")
     projects: list[str] = Field(..., description="List of project identifiers to fetch")
     include_subprojects: bool = Field(
-        default=False, description="Whether to include issues from subprojects",
+        default=False,
+        description="Whether to include issues from subprojects",
     )
 
     def get_output_path(self) -> Path:
