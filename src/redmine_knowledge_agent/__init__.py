@@ -30,32 +30,25 @@ from .processors import (
 )
 
 __all__ = [
-    # Version
-    "__version__",
-    # Client
-    "RedmineClient",
-    # Config
     "AppConfig",
-    "OutputConfig",
-    "RedmineConfig",
-    # Converter
-    "TextileConverter",
-    "textile_to_markdown",
-    # Generator
-    "MarkdownGenerator",
-    # Models
     "AttachmentInfo",
-    "ExtractedContent",
-    "IssueMetadata",
-    "JournalEntry",
-    "ProcessingMethod",
-    "WikiPageMetadata",
-    # Processors
     "BaseProcessor",
     "DocxProcessor",
+    "ExtractedContent",
     "FallbackProcessor",
     "ImageProcessor",
+    "IssueMetadata",
+    "JournalEntry",
+    "MarkdownGenerator",
+    "OutputConfig",
     "PdfProcessor",
+    "ProcessingMethod",
     "ProcessorFactory",
+    "RedmineClient",
+    "RedmineConfig",
     "SpreadsheetProcessor",
+    "TextileConverter",
+    "WikiPageMetadata",
+    "__version__",
+    "textile_to_markdown",
 ]
