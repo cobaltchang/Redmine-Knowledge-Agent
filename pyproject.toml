@@ -45,6 +45,10 @@ dev = [
     "mypy>=1.8.0",
     "openpyxl>=3.1.0",
     "requests>=2.31.0",
+    # Type stubs for third-party libraries used during type checks
+    "types-PyYAML>=6.0.0",
+    "types-requests>=2.31.0",
+    "types-openpyxl>=3.1.0",
     # Security tools
     "bandit[toml]>=1.7.0",
     "pip-audit>=2.7.0",
@@ -92,7 +96,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 exclude_also = [
-    "if __name__ == .__main__.:",
+    "if __name__ == '__main__':",
 ]
 fail_under = 100
 show_missing = true
@@ -102,20 +106,89 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
+# 啟用嚴格程式碼品質規則 (Security Development Lifecycle - CRA/IEC 62443-4-1 合規)
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # Pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "S",   # flake8-bandit (security)
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (import sorting)
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "S",      # flake8-bandit (security) - CRA 安全要求
+    "BLE",    # flake8-blind-except - 避免盲目例外捕獲
+    "A",      # flake8-builtins - 避免覆蓋內建函數
+    "T20",    # flake8-print - 禁止 print 語句
+    "SIM",    # flake8-simplify - 程式碼簡化
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib - 使用 pathlib
+    "PL",     # Pylint
+    "TRY",    # tryceratops - 例外處理最佳實踐
+    "PERF",   # Perflint - 效能最佳化
+    "RUF",    # Ruff-specific rules
+    "LOG",    # flake8-logging - 日誌最佳實踐
+    "G",      # flake8-logging-format
+    "FBT",    # flake8-boolean-trap
+    "COM",    # flake8-commas
+    "PIE",    # flake8-pie
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SLOT",   # flake8-slots
+    "TC",     # flake8-type-checking (renamed from TCH)
+    "DTZ",    # flake8-datetimez - 時區感知
+    "ICN",    # flake8-import-conventions
+    "Q",      # flake8-quotes
+    "N",      # pep8-naming
+    "ERA",    # eradicate - 註解掉的程式碼
+    "PD",     # pandas-vet (若使用 pandas)
+    "D",      # pydocstyle - 文件規範
 ]
-ignore = ["E501"]
+ignore = [
+    "E501",    # 行長度由 formatter 處理
+    "D100",    # 缺少模組 docstring（暫時允許）
+    "D104",    # 缺少 package docstring
+    "D107",    # 缺少 __init__ docstring
+    "D203",    # 與 D211 衝突
+    "D213",    # 與 D212 衝突
+    "COM812",  # 與 formatter 衝突
+    "ISC001",  # 與 formatter 衝突
+    "TC001",   # 允許標準庫在 TYPE_CHECKING 外
+    "TC002",   # 允許第三方在 TYPE_CHECKING 外
+    "TC003",   # 允許本地 import 在 TYPE_CHECKING 外（Typer 需要）
+    "PLR0913", # 允許函數參數較多（CLI 需要）
+    "FBT001",  # 允許布林參數（CLI 需要）
+    "FBT002",  # 允許布林參數預設值
+    "TRY003",  # 允許例外訊息較長
+    "EM101",   # 允許例外使用字串字面值
+    "EM102",   # 允許例外使用 f-string
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S105", "S106"]  # Allow assert and hardcoded passwords in tests
+# 測試檔案允許特定模式
+"tests/*" = [
+    "S101",    # 允許 assert
+    "S105",    # 允許硬編碼密碼（測試用）
+    "S106",    # 允許硬編碼密碼參數
+    "SLF001",  # 允許存取私有成員
+    "ARG001",  # 允許未使用參數（fixtures）
+    "ARG002",  # 允許未使用方法參數
+    "PLR2004", # 允許魔術數字
+    "PLR0915", # 允許較多語句
+    "D",       # 測試不需要 docstring
+    "ANN",     # 測試不需要 type annotations
+    "T20",     # 測試可使用 print
+    "FBT",     # 測試允許布林陷阱
+    "PLC2701", # 允許 import private name
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-branches = 15
+max-statements = 60
 
 [tool.mypy]
 python_version = "3.11"
@@ -123,6 +196,35 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 strict = true
+ignore_missing_imports = false
+
+# Per-module allowances for native extensions / missing stubs
+[tool.mypy-pytesseract]
+ignore_missing_imports = true
+
+[tool.mypy-fitz]
+ignore_missing_imports = true
+
+[tool.mypy-redminelib]
+ignore_missing_imports = true
+
+[tool.mypy-PIL]
+ignore_missing_imports = true
+
+[tool.mypy-openpyxl]
+ignore_missing_imports = true
+
+[tool.mypy-docx]
+ignore_missing_imports = true
+
+[tool.mypy-yaml]
+ignore_missing_imports = true
+
+[tool.mypy-requests]
+ignore_missing_imports = true
+
+[tool.mypy-redminelib.resources]
+ignore_missing_imports = true
 
 # Bandit security scanner configuration
 [tool.bandit]
