@@ -2,6 +2,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com)
+[![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
+[![CVE Check](https://img.shields.io/badge/CVE-checked-green.svg)](https://pypi.org/project/pip-audit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 從 Redmine 自動提取知識，轉換為結構化 Markdown，供 AI 摘要與 RAG 使用
@@ -148,10 +150,35 @@ ruff format src/ tests/
 mypy src/
 ```
 
+## 🔒 安全性
+
+本專案遵循 **CRA (Cyber Resilience Act)** 及 **IEC 62443-4-1** 安全開發標準：
+
+| 類別 | 工具 | 說明 |
+|------|------|------|
+| 靜態分析 | `ruff`, `bandit`, `mypy` | 程式碼品質與安全掃描 |
+| 依賴審計 | `pip-audit`, `safety` | CVE 漏洞檢測 |
+| 機密掃描 | `detect-secrets` | 防止意外提交憑證 |
+| SBOM | `CycloneDX` | 軟體物料清單 |
+
+```bash
+# 安全掃描
+bandit -c pyproject.toml -r src/
+
+# 依賴漏洞檢查
+pip-audit
+
+# 機密檢測
+detect-secrets scan
+```
+
+詳細資訊請參閱 [SECURITY.md](docs/SECURITY.md) 與 [THREAT_MODEL.md](docs/THREAT_MODEL.md)。
+
 ## 📖 文件
 
-- [規格書](docs/SPEC.md) - 完整功能規格
-- [安全設計](docs/SECURITY.md) - 安全考量與威脅模型
+- [規格書](docs/SPEC.md) - 完整功能規格與安全需求
+- [安全設計](docs/SECURITY.md) - 安全架構與威脅模型
+- [威脅建模](docs/THREAT_MODEL.md) - STRIDE 分析與緩解措施
 - [變更記錄](CHANGELOG.md) - 版本歷史
 
 ## 📝 License
