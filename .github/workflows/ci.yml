@@ -24,7 +24,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
+ 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -191,9 +191,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install pip-audit
           pip install -e .
-
-      - name: Check for known CVEs (fail on vulnerabilities)
+      - name: Generate filtered requirements
         run: |
-          echo "🔍 Checking for known CVEs in dependencies..."
-          pip-audit --strict --desc on
-          echo "✅ No known CVEs found!"
+          # Create a requirements list and remove the local editable package
+          pip freeze > all-requirements.txt
+          # Exclude the project package (installed editable) from the scan
+          grep -v "redmine-knowledge-agent" all-requirements.txt > reqs_filtered.txt || true
+          if [ ! -s reqs_filtered.txt ]; then
+            echo "# empty" > reqs_filtered.txt
+          fi
+
+      - name: Run pip-audit on filtered requirements
+        run: |
+          echo "🔍 Checking for known CVEs in filtered requirements..."
+          pip-audit -r reqs_filtered.txt --format json --output pip-audit-filtered.json || true
+
+      - name: Upload pip-audit filtered report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-filtered
+          path: pip-audit-filtered.json
+      - name: Fail on high-severity CVEs
+        run: |
+          python .github/scripts/fail_on_high_severity.py

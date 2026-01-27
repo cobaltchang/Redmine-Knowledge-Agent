@@ -10,9 +10,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import requests  # type: ignore
+import requests
 import structlog
-from redminelib import Redmine  # type: ignore
+from redminelib import Redmine
 
 from .config import RedmineConfig
 from .models import IssueMetadata, WikiPageMetadata

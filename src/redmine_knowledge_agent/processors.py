@@ -30,7 +30,7 @@ except ImportError:  # pragma: no cover
     Image = None
 
 try:
-    import pytesseract as _pytesseract  # type: ignore
+    import pytesseract as _pytesseract
 
     pytesseract = _pytesseract
 except ImportError:  # pragma: no cover
@@ -39,7 +39,7 @@ except ImportError:  # pragma: no cover
 fitz: Any = None
 
 try:
-    import fitz as _fitz  # type: ignore
+    import fitz as _fitz
 
     fitz = _fitz
 except ImportError:  # pragma: no cover
@@ -53,7 +53,7 @@ except ImportError:  # pragma: no cover
     Document = None
 
 try:
-    import openpyxl as _openpyxl  # type: ignore
+    import openpyxl as _openpyxl
 
     openpyxl = _openpyxl
 except ImportError:  # pragma: no cover
