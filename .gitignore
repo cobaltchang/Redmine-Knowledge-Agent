@@ -95,3 +95,16 @@ credentials.json
 tmp/
 temp/
 *.tmp
+
+# CI and scan artifacts
+all-requirements.txt
+reqs_filtered.txt
+bandit-report.json
+pip-audit-report.json
+pip-audit-filtered.json
+secrets-audit.json
+
+# Build and virtualenvs
+dist/
+.venv-ci*
+.venv*/
