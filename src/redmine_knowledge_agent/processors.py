@@ -59,6 +59,24 @@ try:
 except ImportError:  # pragma: no cover
     openpyxl = None
 
+xlrd: Any = None
+
+try:
+    import xlrd as _xlrd
+
+    xlrd = _xlrd
+except ImportError:  # pragma: no cover
+    xlrd = None
+
+olefile: Any = None
+
+try:
+    import olefile as _olefile
+
+    olefile = _olefile
+except ImportError:  # pragma: no cover
+    olefile = None
+
 
 @runtime_checkable
 class AttachmentProcessor(Protocol):
@@ -232,14 +250,13 @@ class PdfProcessor(BaseProcessor):
 
 
 class DocxProcessor(BaseProcessor):
-    """Processor for Word documents."""
+    """Processor for Word documents (.docx only)."""
 
     @property
     def supported_types(self) -> list[str]:
         """Return list of supported MIME types for DOCX processing."""
         return [
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/msword",
         ]
 
     def process(self, file_path: Path) -> ExtractedContent:
@@ -292,6 +309,116 @@ class DocxProcessor(BaseProcessor):
             return self._create_error_result(f"DOCX extraction failed: {e}")
 
 
+class LegacyDocProcessor(BaseProcessor):
+    """Processor for legacy Word documents (.doc format using OLE)."""
+
+    @property
+    def supported_types(self) -> list[str]:
+        """Return list of supported MIME types for legacy DOC processing."""
+        return [
+            "application/msword",
+        ]
+
+    def process(self, file_path: Path) -> ExtractedContent:
+        """Process a legacy .doc file and extract text using olefile.
+
+        Args:
+            file_path: Path to the .doc file.
+
+        Returns:
+            ExtractedContent with extracted text.
+
+        """
+        if not file_path.exists():
+            return self._create_error_result(f"File not found: {file_path}")
+
+        if olefile is None:
+            return self._create_error_result(
+                "Legacy DOC dependencies not available: olefile not installed",
+            )
+
+        try:
+            ole = olefile.OleFileIO(str(file_path))
+            try:
+                # Try to extract text from WordDocument stream
+                if ole.exists("WordDocument"):
+                    # For .doc files, text is stored in streams - try common locations
+                    text_parts: list[str] = []
+
+                    # Try to get text from various streams
+                    for stream_name in ["WordDocument", "1Table", "0Table"]:
+                        if ole.exists(stream_name):
+                            try:
+                                stream_data = ole.openstream(stream_name).read()
+                                # Extract printable ASCII/UTF-8 text
+                                decoded = self._extract_text_from_binary(stream_data)
+                                if decoded.strip():
+                                    text_parts.append(decoded)
+                            except (OSError, ValueError):
+                                continue
+
+                    if text_parts:
+                        extracted_text = "\n\n".join(text_parts)
+                        return ExtractedContent(
+                            text=extracted_text,
+                            metadata={
+                                "filename": file_path.name,
+                                "size": file_path.stat().st_size,
+                                "format": "legacy_doc",
+                            },
+                            processing_method=ProcessingMethod.TEXT_EXTRACT,
+                        )
+
+                # Fallback: list available streams for debugging
+                streams = ole.listdir()
+                return ExtractedContent(
+                    text=f"(Legacy .doc file: {file_path.name} - limited text extraction)",
+                    metadata={
+                        "filename": file_path.name,
+                        "size": file_path.stat().st_size,
+                        "streams": ["/".join(s) for s in streams],
+                        "format": "legacy_doc",
+                    },
+                    processing_method=ProcessingMethod.FALLBACK,
+                )
+            finally:
+                ole.close()
+
+        except (OSError, ValueError, RuntimeError) as e:
+            return self._create_error_result(f"Legacy DOC extraction failed: {e}")
+
+    def _extract_text_from_binary(self, data: bytes) -> str:
+        """Extract readable text from binary data.
+
+        Args:
+            data: Binary data from OLE stream.
+
+        Returns:
+            Extracted text string.
+
+        """
+        # Try UTF-16 LE decoding (common in .doc files)
+        text = data.decode("utf-16-le", errors="ignore")
+        # Filter to printable characters and common whitespace
+        printable = "".join(
+            c for c in text if c.isprintable() or c in "\n\r\t "
+        )
+        # Clean up excessive whitespace
+        lines = [line.strip() for line in printable.split("\n") if line.strip()]
+        if lines:
+            return "\n".join(lines)
+
+        # Fallback: extract ASCII printable characters
+        ascii_printable_start = 32
+        ascii_printable_end = 127
+        whitespace_chars = (9, 10, 13)  # tab, newline, carriage return
+        printable_bytes = bytes(
+            b for b in data
+            if ascii_printable_start <= b < ascii_printable_end or b in whitespace_chars
+        )
+        return printable_bytes.decode("ascii", errors="ignore")
+
+
 class SpreadsheetProcessor(BaseProcessor):
     """Processor for spreadsheet files."""
 
@@ -322,6 +449,9 @@ class SpreadsheetProcessor(BaseProcessor):
         try:
             if suffix == ".csv":
                 return self._process_csv(file_path)
+            if suffix == ".xls":
+                return self._process_legacy_excel(file_path)
+            # Default to xlsx processing
             if openpyxl is None:
                 return self._create_error_result(
                     "Spreadsheet dependencies not available: openpyxl not installed",
@@ -358,7 +488,7 @@ class SpreadsheetProcessor(BaseProcessor):
         )
 
     def _process_excel(self, file_path: Path) -> ExtractedContent:
-        """Process an Excel file."""
+        """Process an Excel .xlsx file using openpyxl."""
         wb = openpyxl.load_workbook(str(file_path), read_only=True, data_only=True)
         all_sheets: list[str] = []
         total_rows = 0
@@ -385,6 +515,48 @@ class SpreadsheetProcessor(BaseProcessor):
                 "sheet_count": len(wb.sheetnames),
                 "total_rows": total_rows,
                 "size": file_path.stat().st_size,
+            },
+            processing_method=ProcessingMethod.TEXT_EXTRACT,
+        )
+
+    def _process_legacy_excel(self, file_path: Path) -> ExtractedContent:
+        """Process a legacy Excel .xls file using xlrd."""
+        if xlrd is None:
+            return self._create_error_result(
+                "Legacy Excel dependencies not available: xlrd not installed",
+            )
+
+        try:
+            wb = xlrd.open_workbook(str(file_path))
+        except Exception as e:  # noqa: BLE001 - xlrd raises various exceptions
+            return self._create_error_result(f"Legacy Excel extraction failed: {e}")
+
+        all_sheets: list[str] = []
+        total_rows = 0
+
+        for sheet_name in wb.sheet_names():
+            sheet = wb.sheet_by_name(sheet_name)
+            rows: list[list[str]] = []
+
+            for row_idx in range(sheet.nrows):
+                row_values = sheet.row_values(row_idx)
+                str_row = [str(cell) if cell is not None else "" for cell in row_values]
+                if any(str_row):  # Skip completely empty rows
+                    rows.append(str_row)
+
+            if rows:
+                total_rows += len(rows)
+                md_table = self._rows_to_markdown(rows)
+                all_sheets.append(f"### {sheet_name}\n\n{md_table}")
+
+        return ExtractedContent(
+            text="\n\n".join(all_sheets) if all_sheets else "(Empty spreadsheet)",
+            metadata={
+                "filename": file_path.name,
+                "sheet_count": wb.nsheets,
+                "total_rows": total_rows,
+                "size": file_path.stat().st_size,
+                "format": "legacy_xls",
             },
             processing_method=ProcessingMethod.TEXT_EXTRACT,
         )
@@ -465,6 +637,7 @@ class ProcessorFactory:
             ImageProcessor(self.config),
             PdfProcessor(self.config),
             DocxProcessor(self.config),
+            LegacyDocProcessor(self.config),
             SpreadsheetProcessor(self.config),
         ]
 

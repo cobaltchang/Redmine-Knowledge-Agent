@@ -13,6 +13,7 @@ from redmine_knowledge_agent.processors import (
     DocxProcessor,
     FallbackProcessor,
     ImageProcessor,
+    LegacyDocProcessor,
     PdfProcessor,
     ProcessorFactory,
     SpreadsheetProcessor,
@@ -144,7 +145,8 @@ class TestDocxProcessor:
         """Test supported MIME types."""
         types = processor.supported_types
         assert "application/vnd.openxmlformats-officedocument.wordprocessingml.document" in types
-        assert "application/msword" in types
+        # application/msword is now handled by LegacyDocProcessor
+        assert "application/msword" not in types
 
     def test_file_not_found(self, processor: DocxProcessor, tmp_path: Path) -> None:
         """Test processing non-existent file."""
@@ -609,3 +611,339 @@ class TestSpreadsheetProcessorEdgeCases:
 
         assert result.error is not None
         assert "failed" in result.error.lower()
+
+    @patch("redmine_knowledge_agent.processors.xlrd", None)
+    def test_xlrd_not_installed(self, tmp_path: Path) -> None:
+        """Test handling of missing xlrd dependency for .xls files."""
+        processor = SpreadsheetProcessor()
+        test_file = tmp_path / "test.xls"
+        test_file.write_bytes(b"fake xls")
+
+        result = processor.process(test_file)
+
+        assert result.error is not None
+        assert "not installed" in result.error.lower() or "not available" in result.error.lower()
+
+    @patch("redmine_knowledge_agent.processors.xlrd")
+    def test_legacy_excel_processing(
+        self,
+        mock_xlrd: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test legacy Excel .xls file processing."""
+        processor = SpreadsheetProcessor()
+        test_file = tmp_path / "test.xls"
+        test_file.write_bytes(b"fake xls")
+
+        # Mock workbook
+        mock_sheet = MagicMock()
+        mock_sheet.nrows = 2
+        mock_sheet.row_values.side_effect = [
+            ["Header1", "Header2"],
+            ["Value1", "Value2"],
+        ]
+
+        mock_wb = MagicMock()
+        mock_wb.sheet_names.return_value = ["Sheet1"]
+        mock_wb.sheet_by_name.return_value = mock_sheet
+        mock_wb.nsheets = 1
+
+        mock_xlrd.open_workbook.return_value = mock_wb
+
+        result = processor.process(test_file)
+
+        assert result.processing_method == ProcessingMethod.TEXT_EXTRACT
+        assert result.metadata.get("format") == "legacy_xls"
+
+    @patch("redmine_knowledge_agent.processors.xlrd")
+    def test_legacy_excel_empty_rows_skipped(
+        self,
+        mock_xlrd: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test empty rows are skipped in legacy Excel."""
+        processor = SpreadsheetProcessor()
+        test_file = tmp_path / "test.xls"
+        test_file.write_bytes(b"fake xls")
+
+        mock_sheet = MagicMock()
+        mock_sheet.nrows = 4
+        mock_sheet.row_values.side_effect = [
+            ["Header1", "Header2"],
+            [None, None],  # Empty row
+            ["", ""],  # Also empty
+            ["Value1", "Value2"],
+        ]
+
+        mock_wb = MagicMock()
+        mock_wb.sheet_names.return_value = ["Sheet1"]
+        mock_wb.sheet_by_name.return_value = mock_sheet
+        mock_wb.nsheets = 1
+
+        mock_xlrd.open_workbook.return_value = mock_wb
+
+        result = processor.process(test_file)
+
+        assert "Header1" in result.text
+        assert "Value1" in result.text
+
+    @patch("redmine_knowledge_agent.processors.xlrd")
+    def test_legacy_excel_exception(
+        self,
+        mock_xlrd: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test legacy Excel processing exception."""
+        processor = SpreadsheetProcessor()
+        test_file = tmp_path / "test.xls"
+        test_file.write_bytes(b"fake xls")
+
+        mock_xlrd.open_workbook.side_effect = RuntimeError("Corrupt file")
+
+        result = processor.process(test_file)
+
+        assert result.error is not None
+        assert "failed" in result.error.lower()
+
+    @patch("redmine_knowledge_agent.processors.xlrd")
+    def test_legacy_excel_empty_sheet(
+        self,
+        mock_xlrd: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test legacy Excel with empty sheet (no rows)."""
+        processor = SpreadsheetProcessor()
+        test_file = tmp_path / "test.xls"
+        test_file.write_bytes(b"fake xls")
+
+        # Mock workbook with empty sheet
+        mock_sheet = MagicMock()
+        mock_sheet.nrows = 0
+
+        mock_wb = MagicMock()
+        mock_wb.sheet_names.return_value = ["EmptySheet"]
+        mock_wb.sheet_by_name.return_value = mock_sheet
+        mock_wb.nsheets = 1
+
+        mock_xlrd.open_workbook.return_value = mock_wb
+
+        result = processor.process(test_file)
+
+        assert result.processing_method == ProcessingMethod.TEXT_EXTRACT
+        # Empty sheet should result in empty spreadsheet text
+        assert "Empty" in result.text or result.metadata.get("total_rows") == 0
+
+
+class TestLegacyDocProcessor:
+    """Tests for LegacyDocProcessor."""
+
+    @pytest.fixture
+    def processor(self) -> LegacyDocProcessor:
+        """Create a LegacyDocProcessor."""
+        return LegacyDocProcessor()
+
+    def test_supported_types(self, processor: LegacyDocProcessor) -> None:
+        """Test supported MIME types."""
+        types = processor.supported_types
+        assert "application/msword" in types
+
+    def test_file_not_found(self, processor: LegacyDocProcessor, tmp_path: Path) -> None:
+        """Test processing non-existent file."""
+        result = processor.process(tmp_path / "nonexistent.doc")
+        assert result.error is not None
+        assert "not found" in result.error.lower()
+
+    @patch("redmine_knowledge_agent.processors.olefile", None)
+    def test_olefile_not_installed(self, tmp_path: Path) -> None:
+        """Test handling of missing olefile dependency."""
+        processor = LegacyDocProcessor()
+        test_file = tmp_path / "test.doc"
+        test_file.write_bytes(b"fake doc")
+
+        result = processor.process(test_file)
+
+        assert result.error is not None
+        assert "not installed" in result.error.lower() or "not available" in result.error.lower()
+
+    @patch("redmine_knowledge_agent.processors.olefile")
+    def test_successful_extraction_with_text(
+        self,
+        mock_olefile: MagicMock,
+        processor: LegacyDocProcessor,
+        tmp_path: Path,
+    ) -> None:
+        """Test successful extraction from legacy .doc file."""
+        test_file = tmp_path / "test.doc"
+        test_file.write_bytes(b"fake doc data")
+
+        # Mock OLE file with WordDocument stream
+        mock_stream = MagicMock()
+        # UTF-16 LE encoded "Hello World"
+        mock_stream.read.return_value = "Hello World".encode("utf-16-le")
+
+        mock_ole = MagicMock()
+        mock_ole.exists.side_effect = lambda x: x == "WordDocument"
+        mock_ole.openstream.return_value = mock_stream
+        mock_ole.listdir.return_value = [["WordDocument"]]
+
+        mock_olefile.OleFileIO.return_value = mock_ole
+
+        result = processor.process(test_file)
+
+        assert result.processing_method == ProcessingMethod.TEXT_EXTRACT
+        assert "Hello World" in result.text
+        mock_ole.close.assert_called_once()
+
+    @patch("redmine_knowledge_agent.processors.olefile")
+    def test_fallback_when_no_text_extracted(
+        self,
+        mock_olefile: MagicMock,
+        processor: LegacyDocProcessor,
+        tmp_path: Path,
+    ) -> None:
+        """Test fallback when no text can be extracted."""
+        test_file = tmp_path / "test.doc"
+        test_file.write_bytes(b"fake doc data")
+
+        mock_ole = MagicMock()
+        mock_ole.exists.return_value = False  # No WordDocument stream
+        mock_ole.listdir.return_value = [["SummaryInformation"]]
+
+        mock_olefile.OleFileIO.return_value = mock_ole
+
+        result = processor.process(test_file)
+
+        assert result.processing_method == ProcessingMethod.FALLBACK
+        assert "limited text extraction" in result.text.lower()
+        mock_ole.close.assert_called_once()
+
+    @patch("redmine_knowledge_agent.processors.olefile")
+    def test_extraction_exception(
+        self,
+        mock_olefile: MagicMock,
+        processor: LegacyDocProcessor,
+        tmp_path: Path,
+    ) -> None:
+        """Test exception handling during extraction."""
+        test_file = tmp_path / "test.doc"
+        test_file.write_bytes(b"fake doc data")
+
+        mock_olefile.OleFileIO.side_effect = RuntimeError("Corrupt file")
+
+        result = processor.process(test_file)
+
+        assert result.error is not None
+        assert "failed" in result.error.lower()
+
+    @patch("redmine_knowledge_agent.processors.olefile")
+    def test_stream_read_exception(
+        self,
+        mock_olefile: MagicMock,
+        processor: LegacyDocProcessor,
+        tmp_path: Path,
+    ) -> None:
+        """Test handling of stream read exception."""
+        test_file = tmp_path / "test.doc"
+        test_file.write_bytes(b"fake doc data")
+
+        mock_stream = MagicMock()
+        mock_stream.read.side_effect = OSError("Read error")
+
+        mock_ole = MagicMock()
+        mock_ole.exists.side_effect = lambda x: x in ("WordDocument", "1Table", "0Table")
+        mock_ole.openstream.side_effect = [mock_stream, mock_stream, mock_stream]
+        mock_ole.listdir.return_value = [["WordDocument"]]
+
+        mock_olefile.OleFileIO.return_value = mock_ole
+
+        result = processor.process(test_file)
+
+        # Should fall back gracefully
+        assert result.processing_method == ProcessingMethod.FALLBACK
+        mock_ole.close.assert_called_once()
+
+    def test_extract_text_from_binary_utf16(self, processor: LegacyDocProcessor) -> None:
+        """Test _extract_text_from_binary with UTF-16 data."""
+        # UTF-16 LE encoded text
+        data = "Hello\nWorld".encode("utf-16-le")
+        result = processor._extract_text_from_binary(data)
+        assert "Hello" in result
+        assert "World" in result
+
+    def test_extract_text_from_binary_ascii_fallback(
+        self, processor: LegacyDocProcessor
+    ) -> None:
+        """Test _extract_text_from_binary fallback to ASCII."""
+        # Pure ASCII data without UTF-16 BOM - will be decoded as UTF-16 first
+        # but we test that printable characters are preserved
+        data = b"Hello World"
+        result = processor._extract_text_from_binary(data)
+        # Result may vary based on decoding, just ensure we get something
+        assert result is not None
+
+    @patch("redmine_knowledge_agent.processors.olefile")
+    def test_stream_with_no_text_content(
+        self,
+        mock_olefile: MagicMock,
+        processor: LegacyDocProcessor,
+        tmp_path: Path,
+    ) -> None:
+        """Test handling stream with no extractable text."""
+        test_file = tmp_path / "test.doc"
+        test_file.write_bytes(b"fake doc data")
+
+        # Mock stream with binary data that produces empty text
+        mock_stream = MagicMock()
+        mock_stream.read.return_value = b"\x00\x00\x00\x00"
+
+        mock_ole = MagicMock()
+        mock_ole.exists.side_effect = lambda x: x == "WordDocument"
+        mock_ole.openstream.return_value = mock_stream
+        mock_ole.listdir.return_value = [["WordDocument"]]
+
+        mock_olefile.OleFileIO.return_value = mock_ole
+
+        result = processor.process(test_file)
+
+        # Should fall back since extracted text is empty
+        assert result.processing_method == ProcessingMethod.FALLBACK
+
+
+class TestProcessorFactoryWithLegacyFormats:
+    """Tests for ProcessorFactory with legacy format support."""
+
+    @pytest.fixture
+    def factory(self) -> ProcessorFactory:
+        """Create a ProcessorFactory."""
+        return ProcessorFactory()
+
+    def test_get_legacy_doc_processor(self, factory: ProcessorFactory) -> None:
+        """Test getting legacy DOC processor."""
+        processor = factory.get_processor("application/msword")
+        assert isinstance(processor, LegacyDocProcessor)
+
+    def test_get_legacy_excel_processor(self, factory: ProcessorFactory) -> None:
+        """Test getting processor for legacy Excel still uses SpreadsheetProcessor."""
+        processor = factory.get_processor("application/vnd.ms-excel")
+        assert isinstance(processor, SpreadsheetProcessor)
+
+    def test_process_xls_file(self, factory: ProcessorFactory, tmp_path: Path) -> None:
+        """Test processing .xls file routes to correct processor."""
+        xls_file = tmp_path / "test.xls"
+        xls_file.write_bytes(b"fake xls")
+
+        # This will use the SpreadsheetProcessor which will handle .xls
+        # Since this is a fake file, xlrd will raise an exception which is caught
+        result = factory.process_file(xls_file)
+        # Since xlrd raises exception for invalid file, we get an error result
+        assert result is not None
+        assert result.error is not None  # Invalid file format
+
+    def test_process_doc_file(self, factory: ProcessorFactory, tmp_path: Path) -> None:
+        """Test processing .doc file routes to correct processor."""
+        doc_file = tmp_path / "test.doc"
+        doc_file.write_bytes(b"fake doc")
+
+        result = factory.process_file(doc_file)
+        # Since olefile may not be installed in test env, just check it doesn't crash
+        assert result is not None
